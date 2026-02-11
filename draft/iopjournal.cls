@@ -74,7 +74,7 @@
 %Headers and footers
 \pagestyle{fancy}
 \fancyhfoffset[L]{27mm}
-\fancyhead[L]{{\small \sf IOP Publishing}\hspace{5mm} {\it Journal} {\bf vv} (yyyy) aaaaaa}
+\fancyhead[L]{{\small \sf IOP Publishing}\hspace{5mm} {\it Physics in Medicine & Biology} {\bf vv} (yyyy) aaaaaa}
 \fancyhead[C]{}
 \fancyhead[R]{Author {\it et al}\ }
 \fancyfoot[LR]{}
@@ -90,7 +90,7 @@
 
 %Article title, type and left-column content
 
-\newcommand{\articletype}[1]{{\vspace*{-8mm}\noindent \Large \sf Journal Name}
+\newcommand{\articletype}[1]{{\vspace*{-8mm}\noindent \Large \sf Physics in Medicine & Biology}
 
 \vspace*{8mm} \noindent\reversemarginpar
 \marginpar{\vspace{-3mm} {\color{gray}\hrule} \ \\ Crossmark\\ {\color{gray}\hrule} \ \\ \tiny {\sf RECEIVED} {\small \\ dd Month yyyy}\\ \\ {\sf REVISED} {\small \\ dd Month yyyy}}{\scriptsize \sf{\bfseries \MakeUppercase{#1}}}}

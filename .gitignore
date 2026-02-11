@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# LaTeX temporary files in draft/
+draft/*.aux
+draft/*.bbl
+draft/*.blg
+draft/*.fdb_latexmk
+draft/*.fls
+draft/*.log
+draft/*.out
+draft/*.synctex.gz
+draft/*.toc
+draft/*.lof
+draft/*.lot
+draft/*.nav
+draft/*.snm
+draft/*.vrb
+draft/*.run.xml
+draft/*.bcf
+draft/*.idx
+draft/*.ilg
+draft/*.ind
+draft/*.brf
+draft/*.fot
+draft/*.cb
+draft/*.cb2
+draft/*.lb
+draft/*.dvi
+draft/*.xdv
+draft/*.spl
+draft/*-blx.bib
+draft/*-blx.aux

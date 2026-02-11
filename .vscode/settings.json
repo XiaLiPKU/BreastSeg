@@ -1,0 +1,87 @@
+{
+    "latex-workshop.latex.recipes": [
+        {
+            "name": "latexmk",
+            "tools": [
+                "latexmk"
+            ]
+        },
+        {
+            "name": "Force Build (latexmk -g)",
+            "tools": [
+                "latexmk_force"
+            ]
+        },
+        {
+            "name": "Clean and Build",
+            "tools": [
+                "latexmk_clean",
+                "latexmk"
+            ]
+        }
+    ],
+    "latex-workshop.latex.tools": [
+        {
+            "name": "latexmk",
+            "command": "/Library/TeX/texbin/latexmk",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-pdf",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ],
+            "env": {}
+        },
+        {
+            "name": "latexmk_force",
+            "command": "/Library/TeX/texbin/latexmk",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-pdf",
+                "-g",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ],
+            "env": {}
+        },
+        {
+            "name": "latexmk_clean",
+            "command": "/Library/TeX/texbin/latexmk",
+            "args": [
+                "-C",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ],
+            "env": {}
+        }
+    ],
+    "latex-workshop.view.pdf.viewer": "tab",
+    "latex-workshop.latex.autoBuild.run": "onSave",
+    "cSpell.words": [
+        "SBCT",
+        "HU",
+        "VBD",
+        "CADe",
+        "CADx",
+        "VAE",
+        "ODE",
+        "IOP",
+        "PMB",
+        "Rectified",
+        "Aleatoric",
+        "Hounsfield",
+        "Tomosynthesis",
+        "Isotropic",
+        "Voxels",
+        "Bottleneck",
+        "Multimodality",
+        "Radiomics",
+        "Hyperdense",
+        "Spiculated",
+        "Fibroglandular"
+    ]
+}
