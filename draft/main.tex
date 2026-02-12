@@ -24,22 +24,22 @@
 
 \email{marco.stampanoni@psi.ch}
 
-\keywords{breast computed tomography, generative segmentation, flow matching, physics-informed priors}
+\keywords{Breast CT, Generative Segmentation, Flow-Matching, Physics-Informed Priors}
 
 \begin{abstract}
-    Breast Computed Tomography (BCT) provides isotropic high-resolution three-dimensional breast imaging without compression and supports quantitative tissue characterization using Hounsfield Units (HU). However, automated tumor segmentation in BCT is difficult because each scan contains massive volumetric data while annotated cohorts remain small, and tumor boundaries are physically ambiguous due to partial-volume mixing. In this setting, conventional discriminative segmentation models are prone to overfitting and tend to collapse boundary ambiguity into overconfident predictions. We therefore propose a physics-informed generative framework that formulates BCT segmentation as distribution learning with Flow-Matching. The method combines three components: HU-based tumor-candidate localization to reduce background dominance, region-of-interest-centered 3D patch augmentation and random affine perturbations, and a lightweight 3D UNet that predicts latent velocity fields in a variational autoencoder space and generates masks through Ordinary Differential Equation (ODE) integration. The framework is evaluated with five-fold cross-validation on a clinical BCT cohort. Compared with deterministic baselines, the proposed approach improves mean Dice from 0.40 to 0.44. Importantly, we observe that voxel-level overlap is constrained by a latent compression bottleneck for very small tumors (approximately below 50 voxels), while deterministic ODE inference remains computationally tractable for high-resolution deployment. These results support Flow-Matching as a data-efficient strategy for screening-oriented BCT tumor analysis and indicate that future gains depend on improving latent spatial fidelity.
+    Breast Computed Tomography (BCT) provides isotropic high-resolution three-dimensional breast imaging without compression and supports quantitative tissue characterization using Hounsfield Units (HU). However, automated tumor segmentation in BCT is difficult because each scan contains massive volumetric data while annotated cohorts remain small, and tumor boundaries are physically ambiguous due to partial-volume mixing. In this setting, conventional discriminative segmentation models are prone to overfitting and tend to collapse boundary ambiguity into overconfident predictions. We therefore propose a physics-informed generative framework that formulates BCT segmentation as distribution learning with Flow-Matching. The method combines three components: HU-based tumor-candidate localization to reduce background dominance, region-of-interest-centered 3D patch augmentation and random affine perturbations, and a lightweight 3D UNet that predicts latent velocity fields in a variational autoencoder space and generates masks through Ordinary Differential Equation (ODE) integration. The framework is evaluated with five-fold cross-validation on a clinical BCT cohort. Compared with deterministic baselines, the proposed approach improves mean Dice from 0.40 to 0.44. Importantly, we observe that voxel-level overlap is constrained by a latent compression bottleneck for very small tumors (approximately below 50 voxels), while deterministic ODE inference remains computationally tractable for high-resolution deployment. These results support Flow-Matching as a data-efficient strategy for screening-oriented BCT tumor analysis and indicate that future gains will depend primarily on more reliable tumor localization and higher lesion-level detection sensitivity, with boundary-level refinement as a secondary objective.
 \end{abstract}
 
 \section{Introduction}
 Breast cancer is now the most commonly diagnosed malignancy worldwide, and imaging remains the cornerstone of early detection \cite{sung2021global}. However, conventional mammography projects complex three-dimensional anatomy onto a two-dimensional plane, making tumor conspicuity strongly dependent on tissue overlap and breast density \cite{boyd2007mammographic}. Digital Breast Tomosynthesis partially mitigates tissue superposition, but as a limited-angle technique it still provides anisotropic depth information and incomplete volumetric recovery in complex dense tissue patterns. Dedicated breast Computed Tomography systems address this geometric limitation by providing true volumetric imaging with isotropic high-resolution voxels and no breast compression \cite{prionas2010contrast, weber2024potential, berger2020diagnostic}. Spiral Breast Computed Tomography (SBCT) with photon-counting detector technology represents the most recent iteration of this approach. Equipped with photon-counting detector technology, dedicated BCT systems can reach isotropic voxel resolutions on the order of 150\,$\mu$m, improving conspicuity for subtle structural features while maintaining quantitative attenuation measurements in Hounsfield Units (HU) \cite{weber2024potential, wieler2021density, landsmann2022applied}. Recent non-contrast BCT evidence shows that malignant tumors are substantially hyperdense relative to dense glandular tissue (approximately 60--62 HU versus 28--33 HU), with significant separability and strong discrimination performance \cite{weber2024potential}. These findings establish a physics-informed signal basis for automated tumor localization in dense breasts. At the same time, exploiting this signal in practice requires algorithms that can process massive high-resolution volumes under limited annotated data availability in this emerging modality \cite{shim2022fully}.
 
-The central methodological barrier in BCT segmentation is the mismatch between data scale and supervision scale. A typical BCT acquisition contains on the order of $10^9$ voxels, while clinically curated annotated cohorts in this emerging modality frequently remain below 50 patients \cite{shim2022fully, caballo2020mass}. Prior BCT and breast-CT tumor-segmentation studies have demonstrated feasibility, but most pipelines remain fundamentally discriminative and predominantly 2D-oriented in their supervision strategy \cite{caballo2020mass, shim2022fully, lyu2021computer, caballo2018unsupervised}. Shim \emph{et al.} developed fully automated breast tissue segmentation workflows on BCT volumes using seeded watershed and region growing algorithms \cite{shim2022fully}, while Caballo \emph{et al.} demonstrated that deep-learning mass segmentation in dedicated breast CT can yield radiomic features statistically equivalent to expert contours \cite{caballo2020mass}, and further adopted multi-view 2D patch-based representations combining handcrafted and CNN features for mass classification \cite{lyu2021computer}. Earlier unsupervised approaches established tissue classification baselines for breast CT dosimetry \cite{caballo2018unsupervised}. These approaches establish important baselines, yet they still compress uncertain tumor boundaries into a single target mask and therefore provide limited access to distribution-level uncertainty.
+The central methodological barrier in BCT segmentation is the mismatch between data scale and supervision scale. A typical BCT acquisition contains on the order of $10^9$ voxels, while clinically curated annotated cohorts in this emerging modality frequently remain low \cite{shim2022fully, caballo2020mass}. Prior BCT and breast-CT tumor-segmentation studies have demonstrated feasibility, but most pipelines remain fundamentally discriminative and predominantly 2D-oriented in their supervision strategy \cite{caballo2020mass, shim2022fully, lyu2021computer, caballo2018unsupervised}. Shim \emph{et al.} developed fully automated breast tissue segmentation workflows on BCT volumes using seeded watershed and region growing algorithms \cite{shim2022fully}, while Caballo \emph{et al.} demonstrated that deep-learning mass segmentation in dedicated breast CT can yield radiomic features statistically equivalent to expert contours \cite{caballo2020mass}, and further adopted multi-view 2D patch-based representations combining handcrafted and CNN features for mass classification \cite{lyu2021computer}. Earlier unsupervised approaches established tissue classification baselines for breast CT dosimetry \cite{caballo2018unsupervised}. These approaches establish important baselines, yet they still enforce single-mask supervision for physically ambiguous boundaries, which can weaken lesion-level detection robustness in sparse-data BCT settings.
 
 Within such volumes, sub-centimeter tumors can occupy less than 0.01\% of all voxels, producing extreme foreground-background imbalance and weak tumor gradients during optimization. In this regime, discriminative frameworks such as nnU-Net, although highly successful in larger biomedical benchmarks, are vulnerable to overfitting and unstable calibration when supervision is sparse relative to dimensionality \cite{isensee2021nnu}. Standard volumetric augmentation can partially improve robustness, but under very small cohorts its effective diversity remains constrained by the narrow empirical training distribution, even when extensive geometric and intensity transforms are applied \cite{isensee2021nnu, perez-garcia2021torchio}. More fundamentally, deterministic segmentation pipelines collapse a potentially multimodal posterior into a single binary target and therefore assume that expert delineation is uniquely correct \cite{schmidt2023probabilistic}. That assumption is violated in BCT because boundary voxels are physically mixed by partial volume effects, yielding intermediate attenuation values that are not unambiguously tumor or parenchyma \cite{lyu2021computer, weber2024potential}. Consistent with this physics-driven ambiguity, inter-reader agreement in breast CT tumor delineation is known to be limited, indicating that no single contour can fully represent the underlying anatomy in difficult cases \cite{caballo2020mass, shim2022fully}. Forcing deterministic models to fit these labels can encourage overconfident boundary decisions and limit clinical reliability. Taken together, extreme data scarcity, severe class imbalance, and irreducible boundary ambiguity indicate that progress requires not merely a stronger discriminative architecture, but a probabilistic modeling paradigm that represents segmentation as a distribution rather than a point estimate.
 
-Recent advances in generative modeling provide a principled alternative to deterministic segmentation in clinically ambiguous regimes. Diffusion-based methods have already shown that medical segmentation can be formulated as conditional distribution learning, where a mask is generated by iterative denoising rather than direct pointwise classification \cite{wu2024medsegdiff, rahman2023ambiguous, wolleb2022diffusion, chen2025diffunet}. Across recent medical segmentation studies, this probabilistic perspective is increasingly valued for ambiguity-aware prediction in difficult boundary regions \cite{wu2024medsegdiff, rahman2023ambiguous, schmidt2023probabilistic, chen2025diffunet}. Latent-space modeling further improves tractability: latent diffusion work by Rombach \emph{et al.} showed that high-resolution synthesis can be performed efficiently in compressed representations, establishing the computational rationale for latent generative segmentation pipelines \cite{rombach2022high}. However, dedicated BCT applications remain limited, particularly under high-resolution small-cohort settings.
+Recent advances in generative modeling provide a principled alternative to deterministic segmentation in clinically ambiguous regimes. Diffusion-based methods have already shown that medical segmentation can be formulated as conditional distribution learning, where a mask is generated by iterative denoising rather than direct pointwise classification \cite{wu2024medsegdiff, rahman2023ambiguous, wolleb2022diffusion, chen2025diffunet}. Across recent medical segmentation studies, this probabilistic perspective is increasingly valued for ambiguity-aware prediction in difficult boundary regions \cite{wu2024medsegdiff, rahman2023ambiguous, schmidt2023probabilistic, chen2025diffunet}. Latent-space modeling further improves tractability: latent diffusion work by \cite{rombach2022high} showed that high-resolution synthesis can be performed efficiently in compressed representations, establishing the computational rationale for latent generative segmentation pipelines \cite{rombach2022high}. However, dedicated BCT applications remain limited, particularly under high-resolution small-cohort settings.
 
-Standard diffusion relies on stochastic differential dynamics with curved probability trajectories and often requires hundreds of iterative function evaluations, which is computationally expensive for high-resolution 3D data. Flow-Matching, introduced by Lipman \emph{et al.}, addresses this limitation by learning an ODE velocity field along linear conditional probability paths that transport samples from a simple source distribution to target masks \cite{lipman2023flow, dao2024flowsdf}. As a result, simple ODE solvers such as Euler integration can reach high-quality segmentations in far fewer steps, in our case 25 inference steps, while reducing computational overhead relative to diffusion-style samplers \cite{han2024semflow}. Empirical evidence supports this efficiency: SemFlow reports strong segmentation performance with 25-step inference relative to diffusion baselines requiring 200 steps, and MAISI-v2 shows 33-fold acceleration for high-resolution 3D medical generation \cite{han2024semflow, zhao2025maisi}. For BCT specifically, this combination of computational efficiency and deterministic ODE inference is well aligned with small-data training and high-resolution deployment constraints. Building on these foundations, we design a physics-informed Flow-Matching framework tailored to the volumetric and attenuation characteristics of BCT.
+Standard diffusion relies on stochastic differential dynamics with curved probability trajectories and often requires hundreds of iterative function evaluations, which is computationally expensive for high-resolution 3D data. Flow-Matching, introduced by \cite{lipman2023flow}, addresses this limitation by learning an ODE velocity field along linear conditional probability paths that transport samples from a simple source distribution to target masks \cite{dao2024flowsdf}. As a result, simple ODE solvers such as Euler integration can reach high-quality segmentations in far fewer steps, in our case 25 inference steps, while reducing computational overhead relative to diffusion-style samplers \cite{han2024semflow}. Empirical evidence supports this efficiency: SemFlow \cite{han2024semflow} reports strong segmentation performance with 25-step inference relative to diffusion baselines requiring 200 steps, and MAISI-v2 \cite{zhao2025maisi} shows 33-fold acceleration for high-resolution 3D medical generation. For BCT specifically, this combination of computational efficiency and deterministic ODE inference is well aligned with small-data training and high-resolution deployment constraints. Building on these foundations, we design a physics-informed Flow-Matching framework tailored to the volumetric and attenuation characteristics of BCT.
 
 The proposed framework integrates three coordinated design principles for BCT: physics-informed candidate localization from HU priors, ROI-centered 3D patch extraction with random affine augmentation, and Flow-Matching-based generative segmentation. First, HU thresholding and morphology-driven filtering restrict the search space to tumor-candidate regions, reducing background dominance before model training. Second, we sample fixed-size 3D patches (64\,$\times$\,64\,$\times$\,64 voxels) from HU-derived ROI bounding boxes and apply differentiable random transformations (anisotropic scaling, three-axis rotation, and random flipping), increasing effective training diversity while preserving volumetric anatomical context at tractable computational cost. Third, a lightweight Flow-UNet predicts the Flow-Matching velocity field on each extracted patch to generate segmentation distributions rather than a single deterministic mask. The specific contributions of this work are:
 \begin{enumerate}
@@ -51,30 +51,34 @@ Together, these components improve tumor-level detection sensitivity and support
 
 \section{Methods}
 \subsection{Overview}
-Figure~\ref{fig:pipeline_data} summarizes the data-side pipeline, including physics-informed candidate localization, intensity preprocessing, and ROI-centered 3D patch augmentation. Figure~\ref{fig:pipeline_model} summarizes the model-side pipeline, including latent-space image-to-mask Flow-Matching and ODE-based inference for binary mask generation. The implementation uses four aligned volumetric channels for each sampled patch: BCT image intensity, breast mask, tumor-candidate mask, and tumor label. We report implementation-level details to support reproducibility in line with PMB standards.
+Figure~\ref{fig:pipeline_data} summarizes the data-side pipeline, including physics-informed candidate localization, intensity preprocessing, and ROI-centered 3D patch augmentation. Figure~\ref{fig:pipeline_model} summarizes the model-side pipeline, including latent-space image-to-mask Flow-Matching and ODE-based inference for binary mask generation. The implementation uses four aligned volumetric channels for each sampled patch: BCT image intensity, breast mask, tumor-candidate mask, and tumor label.
 
 \begin{figure}
 \centering
+\iffalse
 \fbox{\parbox{0.95\linewidth}{
 \textbf{Placeholder for Figure 1 (Pipeline A/B: Data Preparation).}\\
 Panel A: HU-based candidate localization and ROI extraction in full-volume BCT.\\
 Panel B: ROI-centered 3D patch sampling with random affine augmentation (scale/rotation/flip).
 }}
+\fi
 \caption{\label{fig:pipeline_data}Data-side pipeline of the proposed framework: physics-informed candidate localization and ROI-centered 3D augmentation before model training/inference.}
 \end{figure}
 
 \begin{figure}
 \centering
+\iffalse
 \fbox{\parbox{0.95\linewidth}{
 \textbf{Placeholder for Figure 2 (Pipeline C/D: Flow-Matching Model).}\\
 Panel C: Latent image-to-mask Flow-Matching training with a frozen VAE and Flow-UNet velocity prediction.\\
 Panel D: ODE integration (25 Euler steps), decoding, and binary mask generation.
 }}
+\fi
 \caption{\label{fig:pipeline_model}Model-side pipeline of the proposed framework: latent Flow-Matching training and ODE-based inference for segmentation.}
 \end{figure}
 
 \subsection{Data representation and preprocessing}
-The clinical data were acquired with a dedicated BCT system (nu:view, AB-CT -- Advanced Breast-CT GmbH, Erlangen, Germany) using photon-counting detector technology and isotropic high-resolution reconstruction. The analyzed cohort contains $N$ patients (to be finalized in the manuscript), each with paired image and expert tumor annotation volumes. Tumor annotations are represented as binary voxel masks. In addition, a breast mask channel is used to define anatomically valid voxels, and a candidate mask channel is generated from HU-driven preselection for tumor-focused training. Data splitting follows patient-level 5-fold cross-validation, such that all patches from one patient remain within a single fold.
+The clinical data were acquired with a dedicated BCT system (AB-CT\footnote{\texttt{https://ab-ct.de/}} -- Advanced Breast-CT GmbH, Erlangen, Germany) using photon-counting detector technology and isotropic high-resolution reconstruction. The analyzed cohort contains $35$ patients, each with paired image and expert tumor annotation volumes. Tumor annotations are represented as binary voxel masks. In addition, a breast mask channel is used to define anatomically valid voxels. Data splitting follows patient-level 5-fold cross-validation, such that all patches from one patient remain within a single fold.
 
 Input BCT intensities are clipped to a fixed HU window of $[-500, 300]$ and linearly rescaled to $[-1,1]$ before training and inference:
 \begin{equation}
@@ -82,31 +86,32 @@ I_{\mathrm{norm}} = 2\cdot \frac{\mathrm{clip}(I,-500,300)-(-500)}{300-(-500)} -
 \end{equation}
 Only voxels inside the breast mask are treated as anatomically valid support for downstream learning and evaluation.
 
-Because malignant tumors in BCT are typically hyperdense relative to surrounding dense parenchyma \cite{weber2024potential}, we restrict the search space using HU-based candidate masks. Let $I(x)$ denote the input volume and $\tau_{\mathrm{HU}}$ a fixed candidate threshold. Connected components are extracted from the binary map $\mathbf{1}[I(x) > \tau_{\mathrm{HU}}]$, and each component is converted to an ROI box:
+Because malignant tumors in BCT are typically hyperdense relative to surrounding dense parenchyma \cite{weber2024potential}, we restrict the search space using HU-based candidate masks. Let $I(x)$ denote the input volume and $\tau_{\mathrm{HU}}$ a fixed candidate threshold. Candidate generation applies HU thresholding first, followed by morphological erosion and then dilation before connected-component extraction. This erosion--dilation step suppresses thin, line-like glandular tissue candidates and retains more lesion-focused regions. Each connected component is then converted to an ROI box:
 \begin{equation}
-\mathcal{R}_k = \mathrm{BBox}\left(\mathrm{CC}_k\left(\mathbf{1}[I(x) > \tau_{\mathrm{HU}}]\right)\right).
+\mathcal{R}_k = \mathrm{BBox}\left(\mathrm{CC}_k\left(\mathrm{Dilate}\left(\mathrm{Erode}\left(\mathbf{1}[I(x) > \tau_{\mathrm{HU}}]\right)\right)\right)\right).
 \end{equation}
-In code, each ROI is stored as a 3D integer bounding box $[\mathbf{s}_k,\mathbf{e}_k]\in\mathrm{Z}^{3\times 2}$. These ROIs reduce background dominance before learning and enforce tumor-focused sampling in high-resolution volumes. During training, sampled patch count is driven by ROI-indexed sampling. During testing, patch count is determined by sliding-window tiling over each ROI box.
+In code, each ROI is stored as a 3D integer bounding box $[\mathbf{s}_k,\mathbf{e}_k]\in\mathrm{Z}^{3\times 2}$, where $\mathbf{s}_k$ and $\mathbf{e}_k$ denote the start and end corner vectors of the $k$-th ROI, respectively. These ROIs reduce background dominance before learning and enforce tumor-focused sampling in high-resolution volumes. 
 
 \subsection{ROI-centered 3D patch augmentation}
 Given a selected ROI $\mathcal{R}_k$, we sample a fixed-size 3D patch of 64\,$\times$\,64\,$\times$\,64 voxels around a random center constrained inside the ROI box. Instead of first cropping and then applying image warps, the implementation perturbs the sampling grid directly and performs a single differentiable resampling call (\texttt{F.grid\_sample}). This strategy preserves interpolation fidelity and keeps image/label correspondence exact across channels.
 
-Let the canonical patch grid be $G_0\in\mathrm{R}^{H\times D\times W\times 3}$ with axes centered at zero:
+Let the canonical patch grid be $G_0\in\mathrm{R}^{H\times D\times W\times 3}$ with axes centered at zero, where $(H,D,W)$ are the patch dimensions ($64,64,64$ in our setting):
 \begin{equation}
 \mathcal{A}_h = \left\{-\frac{H}{2}+0.5,\ldots,\frac{H}{2}-0.5\right\},\ 
 \mathcal{A}_d = \left\{-\frac{D}{2}+0.5,\ldots,\frac{D}{2}-0.5\right\},\ 
 \mathcal{A}_w = \left\{-\frac{W}{2}+0.5,\ldots,\frac{W}{2}-0.5\right\}.
 \end{equation}
-The meshgrid of $(\mathcal{A}_w,\mathcal{A}_d,\mathcal{A}_h)$ defines voxel-centered sampling coordinates before normalization. A random ROI-constrained center offset is then sampled uniformly:
+The meshgrid of $(\mathcal{A}_w,\mathcal{A}_d,\mathcal{A}_h)$ defines voxel-centered sampling coordinates before normalization. A random ROI-constrained center-offset vector $\mathbf{o}$ is then sampled uniformly:
 \begin{equation}
-\mathbf{o}\sim \mathcal{U}\left(\frac{\mathbf{s}_k+\mathbf{P}/2}{\mathbf{V}},\frac{\mathbf{e}_k-\mathbf{P}/2}{\mathbf{V}}\right),
+\mathbf{o}\sim \mathcal{U}\left(\mathbf{s}_k+\mathbf{P}/2,\mathbf{e}_k-\mathbf{P}/2\right),
 \end{equation}
-where $\mathbf{P}$ is patch size and $\mathbf{V}$ is full-volume size.
+where $\mathbf{s}_k$ and $\mathbf{e}_k$ are the ROI start/end corners, $\mathbf{P}$ is patch size.
 
 Training-time geometric perturbation applies: (i) anisotropic scaling $s_i\sim\mathcal{U}(0.7,1.3)$ independently for each axis, (ii) random rotations within $\pm 30^\circ$ around $x,y,z$ axes via an axis-angle rotation matrix, and (iii) random flipping with probability 0.5. The transformed grid can be written as
 \begin{equation}
 G_{\mathrm{aug}} = R\cdot \mathrm{diag}(s_x,s_y,s_z)\cdot G_0/\mathbf{V} + \mathbf{o}.
 \end{equation}
+where $R\in\mathrm{R}^{3\times 3}$ is the axis-angle rotation matrix, and $(s_x,s_y,s_z)$ are the per-axis scaling factors sampled from $\mathcal{U}(0.7,1.3)$.
 Image voxels are sampled with trilinear interpolation, while binary masks and labels use nearest-neighbor sampling, ensuring discrete supervision remains consistent.
 
 At test time, augmentation is disabled. For each ROI box, patches are generated by deterministic sliding-window tiling with stride 32\,$\times$\,32\,$\times$\,32. Along axis $i$, the number of windows is
@@ -117,7 +122,7 @@ where $B_i$ is ROI extent, $P_i$ is patch size, and $S_i$ is stride. Overlap reg
 
 \subsection{Latent Flow-Matching segmentation}
 \subsubsection{Latent representation}
-To make high-resolution 3D generation tractable, image and mask patches are compressed by a pre-trained MAISI AutoencoderKL \cite{he2024maisi} implemented in the MONAI generative stack \cite{cardoso2022monai}. The VAE uses three encoder stages with channel configuration [64, 128, 256], two residual blocks per stage, and GroupNorm-based normalization with 32 groups. With 8$\times$ spatial downsampling and 4 latent channels, each 64\,$\times$\,64\,$\times$\,64 patch maps to a latent tensor of size 4\,$\times$\,8\,$\times$\,8\,$\times$\,8. During Flow-Matching training, VAE parameters are frozen (\texttt{requires\_grad=False}), and only the latent velocity predictor is optimized.
+To make high-resolution 3D generation tractable, image and mask patches are compressed by a pre-trained MAISI AutoencoderKL \cite{he2024maisi} implemented in the MONAI generative stack \cite{cardoso2022monai}. The VAE uses three encoder stages with channel configuration [64, 128, 256], two residual blocks per stage, and GroupNorm-based normalization with 32 groups. With 8$\times$ spatial downsampling and 4 latent channels, each 64\,$\times$\,64\,$\times$\,64 patch maps to a latent tensor of size 4\,$\times$\,8\,$\times$\,8\,$\times$\,8. During Flow-Matching training, VAE parameters are frozen, and only the latent velocity predictor is optimized.
 
 Before encoding tumor labels, uniform noise is injected:
 \begin{equation}
@@ -126,11 +131,11 @@ Before encoding tumor labels, uniform noise is injected:
 This perturbation is re-sampled at every training iteration. The goal is to avoid overly degenerate latent targets from strictly binary masks and to stabilize gradient flow for velocity regression in latent space.
 
 \subsubsection{Flow-Matching objective}
-Our implementation uses image-to-mask Flow-Matching rather than noise-to-mask transport. Let
+Our implementation uses \textbf{image-to-mask} Flow-Matching rather than \underline{noise-to-mask} transport. Let
 \begin{equation}
 z_0 = \mathrm{Enc}(I_{\mathrm{patch}}), \qquad z_1 = \mathrm{Enc}(\tilde{m}_{\mathrm{patch}}),
 \end{equation}
-where $\tilde{m}$ is the noise-perturbed mask. Following Flow-Matching \cite{lipman2023flow}, we define a linear interpolation path
+where $\tilde{m}$ is the noise-perturbed mask, $(I_{\mathrm{patch}}, m)$ are the paired image and mask patches. Following Flow-Matching \cite{lipman2023flow}, we define a linear interpolation path
 \begin{equation}
 z_t = (1-t)z_0 + tz_1,\quad t \sim \mathcal{U}(0,1),
 \end{equation}
@@ -138,7 +143,7 @@ and train a velocity network $v_\theta(z_t,t)$ with target velocity $v^\ast = z_
 \begin{equation}
 \mathcal{L}_{\mathrm{FM}} = \mathrm{E}_{t,z_0,z_1}\left[\left\|v_\theta(z_t,t)-\left(z_1-z_0\right)\right\|_2^2\right].
 \end{equation}
-Compared with standard noise-anchored transport ($z_0\sim\mathcal{N}(0,I)$), this formulation starts from a structured image latent and learns the residual transformation toward the tumor-mask latent, consistent with the SemFlow design intuition \cite{han2024semflow}. In practice, this shortens the effective transport path and improves convergence in small-data 3D settings. Time is sampled continuously from $\mathcal{U}(0,1)$ (no reweighting schedule), and the model predicts velocity directly (\texttt{pred\_label=false}) rather than predicting the endpoint latent.
+Compared with standard noise-anchored transport ($z_0\sim\mathcal{N}(0,I)$), this formulation starts from a structured image latent and learns the residual transformation toward the tumor-mask latent, consistent with the SemFlow design intuition \cite{han2024semflow}. In practice, this shortens the effective transport path and improves convergence in small-data 3D settings. Time is sampled continuously from $\mathcal{U}(0,1)$ (no reweighting schedule), and the model predicts velocity directly rather than predicting the endpoint latent.
 
 \subsubsection{Network architecture and conditioning}
 The velocity predictor is a lightweight 3D Flow-UNet with encoder-decoder topology and skip connections. With $n_{\mathrm{blocks}}=4$, encoder strides are $[1,2,1,2]$, and channel progression is 64$\rightarrow$128$\rightarrow$128$\rightarrow$256 (base width as 64). The input and output tensors are both 8\,$\times$\,8\,$\times$\,8 latent volumes.
@@ -147,7 +152,7 @@ Time conditioning uses sinusoidal timestep embeddings of dimension 64, followed 
 \begin{equation}
 h' = (\gamma(e)+1)\cdot \mathrm{IN}(h) + \beta(e), \qquad [\gamma,\beta]=\mathrm{Linear}(e),
 \end{equation}
-where $e$ is the time embedding and $\mathrm{IN}$ denotes InstanceNorm3d. Decoder upsampling uses transposed convolutions, concatenated with encoder skip features before block-wise refinement.
+where $e$ is the time embedding and $\mathrm{IN}$ denotes 3D instance normalization. Decoder upsampling uses transposed convolutions, concatenated with encoder skip features before block-wise refinement.
 
 There is no separate image-concatenation conditioning branch. Conditioning is implicit in the interpolation state $z_t$: at $t=0$, $z_t=z_0$ (pure image latent); at $t\to 1$, $z_t\approx z_1$ (near-mask latent). This time-varying state naturally encodes the image-to-mask trajectory while keeping model complexity low.
 
@@ -163,11 +168,9 @@ z_{t+\Delta t}=z_t+\Delta t\, v_\theta(z_t,t).
 Implementation uses \texttt{torchdiffeq.odeint} with \texttt{method="euler"}. The final latent state is decoded to voxel space and thresholded at 0.5 to obtain the binary segmentation mask. For full-volume prediction, overlapping ROI patches are assembled by averaging in overlap regions.
 
 \subsection{Training and evaluation protocol}
-Optimization uses AdamW with learning rate $2\times10^{-4}$, $(\beta_1,\beta_2)=(0.9,0.999)$, cosine learning-rate decay, 200 warmup steps, and gradient clipping with max norm 16. Training uses mixed precision (FP16), batch size 32, and 50 epochs per fold. Gradient accumulation is 1 step (effective batch size 32). Multi-GPU execution is handled through HuggingFace Accelerate.
+Optimization uses AdamW with learning rate $2\times10^{-4}$, $(\beta_1,\beta_2)=(0.9,0.999)$, cosine learning-rate decay, 200 warmup steps, and gradient clipping with max norm 16. Training uses mixed precision (FP16), batch size 32, and 50 epochs per fold. The effective batch size is 32. Multi-GPU execution is handled through HuggingFace Accelerate\footnote{\texttt{https://huggingface.co/docs/accelerate/en/index}}.
 
-Model quality is evaluated with voxel-level overlap and tumor-level detection metrics. We report Dice Similarity Coefficient (DSC), tumor detection sensitivity (fraction of tumors detected above a predefined overlap criterion), and false-positive behavior at connected-component level. Metrics are computed per fold and summarized across five folds.
-
-Code and data availability statements will be provided in the final submission package according to PMB policy.
+Model quality is evaluated with voxel-level overlap and tumor-level detection metrics. We report Dice Similarity Coefficient (DSC), tumor detection sensitivity (fraction of tumors detected above a 0.5 in IoU), and false-positive behavior at connected-component level. Metrics are computed per fold and summarized across five folds.
 
 \section{Results}
 \subsection{Experimental setup}
@@ -204,10 +207,10 @@ To quantify the role of ROI-centered 3D patch augmentation, we ablate geometric 
 \hline
 Augmentation variant & DSC & Detection sensitivity (\%) & Convergence \\
 \hline
-No augmentation & XX.XX & XX.X & No/unstable \\
-Scale only & XX.XX & XX.X & Yes \\
-Scale + rotate & XX.XX & XX.X & Yes \\
-Full (scale + rotate + flip) & \textbf{XX.XX} & \textbf{XX.X} & Yes \\
+No augmentation &  &  & No/unstable \\
+Scale only &  &  & Yes \\
+Scale + rotate &  &  & Yes \\
+Full (scale + rotate + flip) & \textbf{X} & \textbf{X} & Yes \\
 \hline
 \end{tabular}
 \end{center}
@@ -217,12 +220,14 @@ Convergence behavior is visualized in Figure~\ref{fig:aug_convergence}. The no-a
 
 \begin{figure}
 \centering
+\iffalse
 \fbox{\parbox{0.95\linewidth}{
 \textbf{Placeholder for Figure 3 (Convergence Curves).}\\
 X-axis: epoch; Y-axis: validation DSC (or loss).\\
 Curves: no augmentation, scale only, scale+rotate, full scale+rotate+flip.\\
 Optional: dashed training curves to show generalization gap.
 }}
+\fi
 \caption{\label{fig:aug_convergence}Training convergence under different augmentation settings.}
 \end{figure}
 
@@ -252,6 +257,7 @@ We then compare this reconstruction envelope with final Flow-Matching prediction
 
 \begin{figure}
 \centering
+\iffalse
 \fbox{\parbox{0.95\linewidth}{
 \textbf{Placeholder for Figure 4 (VAE Bottleneck).}\\
 Scatter plot (recommended two-panel layout):\\
@@ -259,6 +265,7 @@ Panel A: tumor volume (log scale) vs VAE reconstruction Dice.\\
 Panel B: tumor volume (log scale) vs Flow-Matching prediction Dice, with reconstruction envelope reference.\\
 Mark transition near 50 voxels.
 }}
+\fi
 \caption{\label{fig:vae_bottleneck}Tumor-size-dependent fidelity under latent compression.}
 \end{figure}
 
@@ -269,11 +276,13 @@ Across representative examples, both methods perform similarly in well-defined t
 
 \begin{figure}
 \centering
+\iffalse
 \fbox{\parbox{0.95\linewidth}{
 \textbf{Placeholder for Figure 5 (Qualitative Results).}\\
 Recommended columns: (A) BCT slice, (B) GT overlay, (C) UNet overlay, (D) Flow-Matching overlay.\\
 Recommended rows: easy case, ambiguous-boundary case, small-tumor case.
 }}
+\fi
 \caption{\label{fig:qualitative_results}Representative qualitative segmentation outputs.}
 \end{figure}
 
@@ -282,7 +291,7 @@ The comparison in Section 3.2 indicates that the proposed Flow-Matching framewor
 
 The transport ablation in Section 3.4 provides additional evidence for this design choice. In a standard noise-to-mask formulation, the model must reconstruct all structural information from an unstructured Gaussian source before reaching a plausible tumor configuration. In contrast, image-to-mask transport starts from an encoded image latent and learns the residual displacement toward the mask manifold, which shortens the effective path length in latent space. Under the same architecture and optimization budget, this structured-source formulation yields higher DSC than noise-to-mask in our cohort. The result is consistent with the intuition behind SemFlow-style conditional transport \cite{han2024semflow}: when supervision is scarce and targets are small, reducing unnecessary transport complexity can improve optimization stability. The two formulations may also fail differently in practice. Noise-to-mask can generate anatomically implausible local structures, whereas image-to-mask may bias toward conservative updates (under-segmentation) when tumor evidence is weak. This tradeoff is important for interpreting method behavior beyond a single aggregate metric.
 
-The augmentation ablation in Section 3.3 further suggests that ROI-centered 3D augmentation should be viewed as a training precondition rather than a minor optimization. In larger and more diverse datasets, augmentation often acts as a performance booster; in this setting, the no-augmentation variant can fail to converge stably, indicating insufficient geometric variation for robust optimization. This behavior is expected in BCT because tumor voxels occupy a tiny fraction of the full volume, and naive random sampling would overproduce background-only samples. By centering sampling on HU-derived candidates and perturbing local geometry through scale, rotation, and flipping, the pipeline preserves tumor context while materially increasing local appearance diversity. The design is also computationally aligned with high-resolution imaging: patch-level \texttt{F.grid\_sample} transforms avoid expensive whole-volume augmentation passes while remaining differentiable and compatible with GPU training. Compared with standard volumetric augmentation practice in nnU-Net-style pipelines and toolkits such as TorchIO and related multi-planar segmentation frameworks \cite{isensee2021nnu, perez-garcia2021torchio, perslev2019onetoall}, the present strategy is specifically adapted to the data-scale imbalance characteristic of emerging BCT cohorts.
+The augmentation ablation in Section 3.3 further suggests that ROI-centered 3D augmentation should be viewed as a training precondition rather than a minor optimization. In larger and more diverse datasets, augmentation often acts as a performance booster; in this setting, the no-augmentation variant can fail to converge stably, indicating insufficient geometric variation for robust optimization. This behavior is expected in BCT because tumor voxels occupy a tiny fraction of the full volume, and naive random sampling would overproduce background-only samples. By centering sampling on HU-derived candidates and perturbing local geometry through scale, rotation, and flipping, the pipeline preserves tumor context while materially increasing local appearance diversity. The design is also computationally aligned with high-resolution imaging: patch-level \texttt{F.grid\_sample} transforms avoid expensive whole-volume augmentation passes while remaining differentiable and compatible with GPU training. Compared with standard volumetric augmentation practice in nnU-Net-style pipelines and related multi-planar segmentation frameworks \cite{isensee2021nnu, perez-garcia2021torchio, perslev2019onetoall}, the present strategy is specifically adapted to the data-scale imbalance characteristic of emerging BCT cohorts.
 
 An additional implementation detail is the latent-space label perturbation strategy. Binary labels encoded by a frozen VAE tend to occupy a narrow latent manifold, which can produce overly concentrated velocity targets and weak gradient diversity during training. Injecting bounded uniform perturbation before label encoding broadens the target distribution seen by the velocity regressor and acts as latent-space label smoothing. In practice, this stabilizes optimization without changing the semantic tumor support in voxel space. The uniform distribution is useful here because it preserves bounded perturbations around the binary support, avoiding occasional large excursions that can arise from unbounded Gaussian tails.
 
@@ -299,11 +308,7 @@ Several limitations should be considered when interpreting these findings. First
 Future work will focus on reducing the latent-fidelity bottleneck while preserving tractable training and inference. Promising directions include lower-compression autoencoders, multi-scale latent pathways, and hybrid latent-pixel refinement schemes targeting high-frequency boundary retention. On the data side, larger multi-center BCT cohorts are needed to evaluate domain shift robustness and tumor-subtype behavior. On the benchmarking side, adding stronger deterministic and generative comparators will clarify which gains are specific to Flow-Matching and which reflect broader probabilistic modeling effects. For translational validation, prospective reader studies should quantify whether improved detection sensitivity and false-positive behavior translate into measurable clinical workflow benefit. Finally, extending from binary tumor segmentation to richer multi-class tissue characterization may better leverage the quantitative HU information available in BCT and strengthen links between physical imaging signals and generative inference.
 
 \section{Conclusion}
-This study establishes that generative segmentation with Flow-Matching is a practical option for high-resolution BCT in the small-cohort regime. The central empirical message is not only that voxel overlap improves, but that tumor-level detection improves more clearly than Dice alone suggests. The study also reveals that training behavior in this regime depends critically on how data variation is constructed: ROI-centered 3D geometric perturbation functions as a convergence condition under extreme class imbalance, not merely a minor performance enhancement. In addition, the observed tumor-size-dependent fidelity limit indicates that part of the attainable performance is governed by latent representation scale, independently of downstream predictor complexity.
-
-Taken together, these findings imply that progress in BCT segmentation is best framed as a joint modeling-and-physics problem. The value of the present approach lies in coupling probabilistic inference with modality-specific constraints, so that algorithmic outputs remain consistent with known image ambiguity at tumor boundaries. More broadly, the results support a shift from pure leaderboard-style overlap optimization toward evaluation strategies that emphasize detection behavior and representational limits. At the same time, clinical translation requires cautious interpretation: larger multi-center cohorts, broader baseline comparisons, and prospective reader-impact studies are still needed before deployment-oriented claims can be made.
-
-The most direct next step is to reduce the latent fidelity bottleneck while preserving computational tractability, for example through lower-compression or multi-scale representation designs. In parallel, future studies should quantify the practical value of improved tumor-level detection in real reading workflows. While voxel-level overlap remains constrained by latent spatial fidelity, the demonstrated detection sensitivity supports the feasibility of generative BCT segmentation as a screening-oriented decision-support direction.
+This study establishes that generative segmentation with Flow-Matching is a practical option for high-resolution BCT in the small-cohort regime. The central empirical message is not only that voxel overlap improves, but that tumor-level detection improves more clearly than Dice alone suggests. The study also reveals that training behavior in this regime depends critically on how data variation is constructed: ROI-centered 3D geometric perturbation functions as a convergence condition under extreme class imbalance, not merely a minor performance enhancement. In addition, the observed tumor-size-dependent fidelity limit indicates that part of the attainable performance is governed by latent representation scale, independently of downstream predictor complexity. Taken together, these findings imply that progress in BCT segmentation is best framed as a joint modeling-and-physics problem, where the value lies in coupling probabilistic inference with modality-specific constraints so that algorithmic outputs remain consistent with known image ambiguity at tumor boundaries. More broadly, the results support a shift from pure overlap optimization toward evaluation strategies that emphasize detection behavior and representational limits. At the same time, clinical translation requires cautious interpretation: larger multi-center cohorts, broader baseline comparisons, and prospective reader-impact studies are still needed before deployment-oriented claims can be made. 
 
 \section*{References}
 \bibliographystyle{vancouver}

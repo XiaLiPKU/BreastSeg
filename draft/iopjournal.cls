@@ -74,9 +74,9 @@
 %Headers and footers
 \pagestyle{fancy}
 \fancyhfoffset[L]{27mm}
-\fancyhead[L]{{\small \sf IOP Publishing}\hspace{5mm} {\it Physics in Medicine \& Biology} {\bf vv} (2026) aaaaaa}
+\fancyhead[L]{{\small \sf IOP Publishing}\hspace{5mm} {\it Physics in Medicine \& Biology} {\bf vv} (2026)}
 \fancyhead[C]{}
-\fancyhead[R]{Author {\it et al}\ }
+\fancyhead[R]{Li {\it et al}\ }
 \fancyfoot[LR]{}
 \fancyfoot[C]{\thepage}
 \renewcommand{\headrulewidth}{0.5pt}
