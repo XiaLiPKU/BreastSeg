@@ -9,12 +9,12 @@
 - **Bib Tools**: `bibtex`, `biber`
 - **Working Directory**: `draft/`
 - **Document Class**: `iopjournal.cls` (IOP Publishing 2024, 基于 `article` class)
-- **Main File**: `iopjournal-template.tex` (用户会重命名为实际论文文件)
+- **Main File**: `main.tex` (当前项目主文件；若用户指定其他 `.tex`，以用户指定为准)
 
 ## Project Files (draft/)
 | 文件 | 用途 |
 |---|---|
-| `iopjournal-template.tex` | 主 LaTeX 源文件 |
+| `main.tex` | 主 LaTeX 源文件 |
 | `iopjournal.cls` | IOP 期刊 class 文件 (不要修改) |
 | `iopjournal-guidelines.pdf` | 期刊排版指南 (仅供参考) |
 | `figure1.pdf` | 示例图片 |
@@ -26,24 +26,24 @@
 单次快速编译，适合日常写作中预览：
 ```bash
 # // turbo
-cd /Users/xiali/Projects/PMB26-BreastSeg/draft && pdflatex -interaction=nonstopmode iopjournal-template.tex
+cd /Users/xiali/Projects/PMB26-BreastSeg/draft && pdflatex -interaction=nonstopmode main.tex
 ```
 
 ### Full Build (含参考文献)
 完整编译流程，解析所有交叉引用和参考文献：
 ```bash
 # // turbo
-cd /Users/xiali/Projects/PMB26-BreastSeg/draft && latexmk -pdf -interaction=nonstopmode iopjournal-template.tex
+cd /Users/xiali/Projects/PMB26-BreastSeg/draft && latexmk -pdf -interaction=nonstopmode main.tex
 ```
 
 ### Full Build (手动流程)
 如果 `latexmk` 出现问题，使用手动四步编译：
 ```bash
 cd /Users/xiali/Projects/PMB26-BreastSeg/draft && \
-  pdflatex -interaction=nonstopmode iopjournal-template.tex && \
-  bibtex iopjournal-template && \
-  pdflatex -interaction=nonstopmode iopjournal-template.tex && \
-  pdflatex -interaction=nonstopmode iopjournal-template.tex
+  pdflatex -interaction=nonstopmode main.tex && \
+  bibtex main && \
+  pdflatex -interaction=nonstopmode main.tex && \
+  pdflatex -interaction=nonstopmode main.tex
 ```
 
 ### Clean Build Artifacts
@@ -63,7 +63,7 @@ cd /Users/xiali/Projects/PMB26-BreastSeg/draft && rm -f *.aux *.log *.out *.toc 
 ### 1. Compile & Preview (编译预览)
 **Trigger:** 用户要求编译、build、或预览 PDF。
 **Action:**
-1. 确认主 `.tex` 文件名（默认 `iopjournal-template.tex`）。
+1. 确认主 `.tex` 文件名（默认 `main.tex`）。
 2. 如果用户只是预览草稿 → 使用 **Standard Build**。
 3. 如果需要完整输出（含引用和交叉引用） → 使用 **Full Build**。
 4. 检查编译输出，报告 errors / warnings。

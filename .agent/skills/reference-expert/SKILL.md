@@ -10,7 +10,7 @@
 - **Guidelines**: `final-structure.md` (大纲) 和 `pmb-requirements.md` (PMB 期刊投稿要求)
 
 ## Capabilities (Virtual Tools)
-当用户请求帮助写作或查找资料时，请根据**当前上下文**执行以下逻辑（模拟读取文件）：
+当用户请求帮助写作或查找资料时，请根据**当前上下文**执行以下逻辑（直接读取相关文件）：
 
 ### 1. Mode: Writing Introduction & Background
 **Trigger:** 用户正在写 "Introduction", "Literature Review", 或 "Clinical Relevance"。
@@ -25,6 +25,7 @@
 - **For Generative/GANs:** 读取 `reports/3. Generative Models....md` 和 `references/synthrad-cgan.md`。
 - **For Flow Models:** 必须读取 `references/neurips-semflow.md` (提取核心流模型公式)。
 - **For VAE/Compression:** 读取 `reports/4. VAE Compression....md`。
+- **For implementation-specific details:** 先读取 `.agent/skills/source-code-overview/SKILL.md`，再定位 `MedTrans/` 对应源码文件核对方法细节。
 
 ### 3. Mode: Writing Experiments & Data
 **Trigger:** 用户正在写 "Materials", "Data Preprocessing", "Augmentation"。
@@ -37,7 +38,7 @@
 **Trigger:** 用户询问格式、结构或在此提交前的检查。
 **Action:**
 - 对照 `pmb-requirements.md` 检查当前的 citation 格式、图表标题规范。
-- 对照 `draft/iopjournal-guidelines.pdf` (如果能读取) 或 `draft/iopjournal-template.tex` 确认 LaTeX 宏包使用是否正确。
+- 对照 `draft/iopjournal-guidelines.pdf` (如果能读取) 或 `draft/main.tex` 确认 LaTeX 宏包使用是否正确。
 
 ## Rules (Critical)
 1.  **Citation Mapping**: 凡是从 `references/*.md` 中提取的观点，必须在输出中标注 `\cite{...}`。请根据文件名猜测 BibTeX Key (例如 `neurips-semflow.md` -> `\cite{neurips_semflow}`)，并提示用户确认 `.bib` 文件。

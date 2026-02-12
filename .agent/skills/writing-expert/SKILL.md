@@ -8,7 +8,27 @@
 - **Deep Reports (Macro)**: `reports/` (5 份 Deep Research 综述，用于背景论证和文献综述)
 - **Core Papers (Micro)**: `references/` (5 篇核心参考文献，用于引用具体公式、数据和方法)
 - **Guidelines**: `final-structure.md` (论文大纲与叙事策略) 和 `pmb-requirements.md` (PMB 投稿格式要求)
-- **Template**: `draft/iopjournal-template.tex` (IOP LaTeX 模板)
+- **Main Manuscript**: `draft/main.tex` (当前论文主文件)
+- **Method Source of Truth**: `MedTrans/` (实现细节优先查源码；参考 `.agent/skills/source-code-overview/SKILL.md`)
+
+## Reference Priority (何时参考哪个文件)
+在写作任务开始时先判断目标，再按下列优先级读取：
+
+1. **叙事与章节规划（先看 `final-structure.md`）**
+   - 场景：写 Introduction/Discussion 的逻辑主线、确定贡献点排序、决定章节重点。
+   - 目标：保持方法论主导叙事（problem -> method -> evidence -> implication）。
+
+2. **投稿合规与格式约束（必看 `pmb-requirements.md`）**
+   - 场景：写 Abstract、检查引用体例、图表标题、章节结构、投稿前总检查。
+   - 目标：确保 PMB 规范满足（如 abstract <= 300 words、no citations、Harvard style）。
+
+3. **实现细节与技术准确性（必看 `MedTrans/` 源码）**
+   - 场景：Methods 2.x、Experiments 3.x、涉及算法流程/参数/模块行为时。
+   - 目标：避免“叙事正确但实现不符”；实现细节以源码为准。
+
+4. **冲突处理优先级**
+   - `pmb-requirements.md` > `MedTrans/`(实现事实) > `final-structure.md`(叙事策略)。
+   - 如 `final-structure.md` 与源码不一致，先按源码写，再给出可选叙事修订建议。
 
 ## Identity & Tone
 - **身份**：你是一位医学物理与深度学习交叉领域的资深学术写手。
@@ -31,8 +51,9 @@
 **Action:**
 1. 读取 `final-structure.md` 中对应章节的写作指引。
 2. 根据指引从 `references/` 和 `reports/` 中**只读取最相关的 2–3 个文件**获取素材。
-3. 直接输出**完整的英文段落**，包含 `\cite{...}` 引用标记。
-4. 对照 `pmb-requirements.md` 确保格式合规。
+3. 若章节涉及方法实现细节（尤其 Methods 2.x / Experiments 3.x），先按 `.agent/skills/source-code-overview/SKILL.md` 定位并读取对应 `MedTrans/` 源码文件。
+4. 直接输出**完整的英文段落**，包含 `\cite{...}` 引用标记。
+5. 对照 `pmb-requirements.md` 确保格式合规。
 
 **各章节素材映射：**
 
@@ -61,7 +82,7 @@
 ### Mode 3: Write LaTeX Fragment (输出 LaTeX)
 **Trigger:** 用户要求输出可直接粘贴到 `.tex` 文件的内容。
 **Action:**
-1. 读取 `draft/iopjournal-template.tex` 确认 LaTeX 宏包和命令格式。
+1. 读取 `draft/main.tex` 与 `draft/iopjournal.cls`，确认当前文档的 LaTeX 命令和结构风格。
 2. 输出带完整 LaTeX 标记的内容 (`\section{}`, `\subsection{}`, `\cite{}`, `\label{}`, `\ref{}`)。
 3. 数学公式使用 `equation` 或 `align` 环境，行内公式使用 `$...$`。
 

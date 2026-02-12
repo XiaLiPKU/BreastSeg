@@ -28,11 +28,15 @@
                 "-synctex=1",
                 "-interaction=nonstopmode",
                 "-file-line-error",
+                "-pdflatex=/Library/TeX/texbin/pdflatex %O %S",
                 "-pdf",
+                "-g",
                 "-outdir=%OUTDIR%",
                 "%DOC%"
             ],
-            "env": {}
+            "env": {
+                "PATH": "/Library/TeX/texbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            }
         },
         {
             "name": "latexmk_force",
@@ -41,12 +45,15 @@
                 "-synctex=1",
                 "-interaction=nonstopmode",
                 "-file-line-error",
+                "-pdflatex=/Library/TeX/texbin/pdflatex %O %S",
                 "-pdf",
                 "-g",
                 "-outdir=%OUTDIR%",
                 "%DOC%"
             ],
-            "env": {}
+            "env": {
+                "PATH": "/Library/TeX/texbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            }
         },
         {
             "name": "latexmk_clean",
@@ -56,11 +63,16 @@
                 "-outdir=%OUTDIR%",
                 "%DOC%"
             ],
-            "env": {}
+            "env": {
+                "PATH": "/Library/TeX/texbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            }
         }
     ],
     "latex-workshop.view.pdf.viewer": "tab",
     "latex-workshop.latex.autoBuild.run": "onSave",
+    "latex-workshop.latex.search.rootFiles.exclude": [
+        "**/iopjournal-template.tex"
+    ],
     "cSpell.words": [
         "SBCT",
         "HU",

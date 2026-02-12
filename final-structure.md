@@ -7,7 +7,7 @@
 ---
 
 ### **论文题目 (Revised for Technical Depth)**
-> **Data-Efficient Generative Segmentation for High-Resolution Spiral Breast CT: A Rectified Flow Matching Approach with Physics-Informed Priors**
+> **Data-Efficient Generative Segmentation for High-Resolution Spiral Breast CT: A Rectified Flow Approach with Physics-Informed Priors**
 > *(面向高分辨率螺旋乳腺CT的数据高效生成式分割：基于物理先验的整流流匹配方法)*
 
 *   **解析：**
@@ -22,7 +22,7 @@
 *   **现在的故事 (Method-driven):**
     1.  **科学难题：** 在 SBCT 这种高分辨率但样本极度稀缺的模态下，传统**判别式模型 (Discriminative Models, e.g., UNet)** 容易过拟合，且无法处理由物理成像导致的**模糊边界 (Aleatoric Uncertainty)**。
     2.  **方法创新 I (生成式建模)：** 引入 **Rectified Flow**，将分割任务重构为从噪声到病灶掩码的**概率传输过程 (Probabilistic Transport)**。这不仅是一个分割工具，更是一个能捕捉标注不确定性的**分布学习器**。
-    3.  **方法创新 II (数据高效)：** 提出 **2D Sampling Plane Augmentation**，从几何原理上解决了 3D 体积数据显存爆炸与样本不足的矛盾。
+    3.  **方法创新 II (数据高效)：** 提出 **Sampling Plane Augmentation**（3D-aware multi-plane sampling），从几何原理上解决了 3D 体积数据显存爆炸与样本不足的矛盾。
     4.  **物理约束：** 利用 CT 值 (HU) 的物理特性作为**归纳偏置 (Inductive Bias)**，约束生成模型的搜索空间。
 
 ---
@@ -38,7 +38,7 @@
     *   我们需要从 **Deterministic Classification** 转向 **Generative Modeling**。
     *   引入 **Rectified Flow (SemFlow [Ref-04])**：利用 ODE 轨迹的平滑性来逼近解剖结构的生成，而非硬分类。
 *   **P4: 核心贡献 (Contributions):**
-    1.  **Method:** 提出一种结合物理先验 (HU-RoI) 和生成式流匹配 (Flow-UNet) 的小目标分割框架。
+    1.  **Method:** 提出一种结合物理先验 (HU-RoI) 和 Rectified Flow (Flow-UNet) 的小目标分割框架。
     2.  **Method:** 设计 **Sampling Plane Augmentation** 算法，实现 3D 空间特征的高效学习。
     3.  **Insight:** 揭示了 VAE 压缩率是制约生成式模型在微小病灶 ($<50$ voxels) 上性能的物理瓶颈 (Physical Bottleneck)。
 
@@ -70,7 +70,7 @@
     *   **结论：** 模型能“感知”到物理边界的模糊性，这比 UNet 的盲目自信更有临床安全价值。
 
 #### **4. Discussion (升华)**
-*   **技术洞察：** 讨论 Flow Matching 在医学小样本学习中的潜力——它充当了一种强正则化（Regularization），防止了对噪声标签的过拟合。
+*   **技术洞察：** 讨论 Rectified Flow 在医学小样本学习中的潜力——它充当了一种强正则化（Regularization），防止了对噪声标签的过拟合。
 *   **物理瓶颈：** 深入讨论 VAE 下采样对微小病灶的影响（这是对社区的重要贡献）。
 *   **临床转化：** 结合不确定性图，说明该方法如何作为 Radiologist 的辅助工具。
 
@@ -91,3 +91,10 @@
 
 ### **总结**
 这个框架**保留了 Pipeline 的完整性**（Claude 的建议），但**极大地增强了算法和物理层面的深度**（您的需求）。它将你的工作定义为**“针对特殊物理模态的生成式算法探索”**，完全符合 PMB 的高标准。
+
+---
+
+### **维护说明（更新）**
+- 本文件用于叙事与结构策略；具体实现细节以 `MedTrans/` 源码为准。
+- 若本文件与 `pmb-requirements.md` 在投稿格式上冲突，以 `pmb-requirements.md` 为准。
+- 若本文件与当前实验实现冲突，先核对 `.agent/skills/source-code-overview/SKILL.md` 再回写本文档。
